@@ -13,6 +13,12 @@ pub struct QuantResult {
     pub max_ang_err: Fix,
 }
 
+#[derive(Copy, Clone, Debug)]
+pub struct DequantResult {
+    pub new_state: State,
+    pub quats_put: usize,
+}
+
 impl State {
     pub fn new() -> State {
         State {
@@ -52,7 +58,7 @@ impl State {
                 }
                 bytes_put += 3;
             }
-            
+
             // update state
             new_state.v = new_state.v + sum;
             new_state.q = (new_state.q * Quat::from_rvec(&new_state.v)).normalize_safe();
@@ -65,6 +71,31 @@ impl State {
             new_state,
             bytes_put,
             max_ang_err,
+        })
+    }
+
+    pub fn dequant_block(self, data: &[u8], qp: u8, out: &mut [Quat]) -> Option<DequantResult> {
+        let mut quats_put = 0;
+        let mut new_state = self;
+
+        for n in 0..data.len() / 3 {
+            let i = 3*n;
+            let upd = [data[i] as i8, data[i + 1] as i8, data[i + 2] as i8];
+            new_state.v = new_state.v + dequant_update(upd, qp);
+
+            if !is_saturated(upd, 127) {
+                if quats_put >= out.len() {
+                    return None;
+                }
+                new_state.q = (new_state.q * Quat::from_rvec(&new_state.v)).normalize_safe();
+                out[quats_put] = new_state.q;
+                quats_put += 1;
+            }
+        }
+
+        Some(DequantResult {
+            new_state,
+            quats_put,
         })
     }
 }

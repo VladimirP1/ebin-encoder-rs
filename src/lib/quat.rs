@@ -1,4 +1,4 @@
-use std::ops::{Add, Div, Mul, Neg, Sub};
+use std::ops::{Add, Mul, Neg, Sub};
 
 use crate::fix32::Fix32;
 
@@ -146,7 +146,7 @@ impl Quat {
 
 impl Add for &Quat {
     type Output = Quat;
-    
+
     fn add(self, rhs: Self) -> Self::Output {
         Quat {
             w: self.w + rhs.w,
@@ -159,7 +159,7 @@ impl Add for &Quat {
 
 impl Mul for &Quat {
     type Output = Quat;
-    
+
     fn mul(self, rhs: Self) -> Self::Output {
         Quat {
             w: self.w * rhs.w - self.x * rhs.x - self.y * rhs.y - self.z * rhs.z,
