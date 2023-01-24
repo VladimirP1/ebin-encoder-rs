@@ -74,6 +74,7 @@ impl State {
         })
     }
 
+    // use decompress_block instead
     pub fn dequant_block(self, data: &[i8], qp: u8, out: &mut [Quat]) -> Option<DequantResult> {
         let mut quats_put = 0;
         let mut new_state = self;

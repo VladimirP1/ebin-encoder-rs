@@ -1,7 +1,7 @@
 use ebin::{
+    compress::{compress_block, decompress_block},
     quant::{QuantResult, State},
     quat::{Fix, Quat, RVec},
-    rans::{rans_encode, LaplaceCdf, rans_decode}, compress::{compress_block, decompress_block},
 };
 
 fn main() {
@@ -43,9 +43,8 @@ fn main() {
     dbg!(res.bytes_put);
     let mut state = State::new();
     let mut quats3 = vec![Quat::default(); 256];
-    let res1 = decompress_block(&state, &data[0..119], &mut quats3).unwrap();
+    let res1 = decompress_block(&state, &data, &mut quats3).unwrap();
     dbg!(res1);
-
 
     let mut rmse = 0.0;
     for i in 0..quats.len() {

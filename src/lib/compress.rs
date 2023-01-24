@@ -12,14 +12,6 @@ const VAR_TABLE: [f64; 16] = [
 ];
 const SCALE: i32 = 15;
 
-fn to_i8(a: &[u8]) -> &[i8] {
-    unsafe { &*(a as *const _ as *const [i8]) }
-}
-
-fn to_u8(a: &[i8]) -> &[u8] {
-    unsafe { &*(a as *const _ as *const [u8]) }
-}
-
 pub fn compress_block(
     state: &State,
     quats: &[Quat],
@@ -33,13 +25,33 @@ pub fn compress_block(
         .map(|&x| ((x as i64) * (x as i64)) as i64)
         .sum::<i64>() as f64)
         / (quant_result.bytes_put as f64);
-    let i_var = VAR_TABLE
-        .partition_point(|&x| x < var)
-        .min(VAR_TABLE.len() - 1);
-    let i_var = 1;
-    let var = VAR_TABLE[i_var];
+
+    // assume that there is only one minimum
+    let mut l = -1;
+    let mut r = 16;
+    while r - l > 1 {
+        let mid = (l + r) / 2;
+        let var = VAR_TABLE[mid as usize];
+        let mdl = LaplaceCdf::new(var, SCALE);
+        let bytes_used_l = rans_encode(&scratch[..quant_result.bytes_put], &mut data[2..], &mdl)
+            .unwrap_or(data.len() - 2);
+        let var = VAR_TABLE[mid as usize + 1];
+        let mdl = LaplaceCdf::new(var, SCALE);
+        let bytes_used_r = rans_encode(&scratch[..quant_result.bytes_put], &mut data[2..], &mdl)
+            .unwrap_or(data.len() - 2);
+        if bytes_used_l > bytes_used_r {
+            l = mid;
+        } else {
+            r = mid;
+        }
+    }
+
+    let i_var = l + 1;
+    let var = VAR_TABLE[i_var as usize];
     let mdl = LaplaceCdf::new(var, SCALE);
-    let rans_result = rans_encode(&scratch[..quant_result.bytes_put], &mut data[2..], &mdl)?;
+    let rans_result = rans_encode(&scratch[..quant_result.bytes_put], &mut data[2..], &mdl)
+        .unwrap_or(data.len() - 2);
+
     let cksum = scratch[0..quant_result.bytes_put]
         .iter()
         .map(|x| x.to_owned() as u8)
@@ -47,8 +59,6 @@ pub fn compress_block(
         .unwrap_or(0);
     data[0] = qp;
     data[1] = i_var as u8 | (cksum << 5);
-
-    dbg!(i_var);
 
     Some(CompressResult {
         new_state: quant_result.new_state,
@@ -60,7 +70,6 @@ pub fn decompress_block(state: &State, data: &[u8], quats: &mut [Quat]) -> Optio
     let qp = data[0];
     let i_var = (data[1] & 0x1f) as usize;
     let cksum = data[1] >> 5;
-    dbg!(qp, i_var, cksum);
 
     let mdl = LaplaceCdf::new(VAR_TABLE[i_var], SCALE);
 
@@ -89,8 +98,6 @@ pub fn decompress_block(state: &State, data: &[u8], quats: &mut [Quat]) -> Optio
 
             while rstate < RANS_BYTE_L {
                 if bytes_eaten >= data.len() {
-                    dbg!(bytes_eaten, quats_put);
-                    panic!();
                     return None;
                 }
                 rstate = (rstate << 8) | data[bytes_eaten] as u32;
@@ -100,17 +107,14 @@ pub fn decompress_block(state: &State, data: &[u8], quats: &mut [Quat]) -> Optio
 
         if let Some(q) = new_state.dequant_one(&s, qp) {
             if quats_put >= quats.len() {
-                dbg!(bytes_eaten, quats_put);
-                panic!();
                 return None;
             }
             quats[quats_put] = q;
             quats_put += 1;
         }
     }
-    dbg!(own_cksum&0x07, cksum);
     if (own_cksum & 0x07) != cksum {
-        return None
+        return None;
     }
     Some(bytes_eaten)
 }
@@ -118,14 +122,11 @@ pub fn decompress_block(state: &State, data: &[u8], quats: &mut [Quat]) -> Optio
 pub fn rans_encode<T: Cdf>(data: &[i8], out: &mut [u8], mdl: &T) -> Option<usize> {
     let mut state = RANS_BYTE_L;
     let mut bytes_put = 0;
-    let mut cntn = 0;
     for sym in data.iter().rev() {
         let start = mdl.cdf(*sym as i32);
         let freq = mdl.cdf(*sym as i32 + 1) - start;
         let x_max = ((RANS_BYTE_L >> mdl.scale()) << 8) * freq;
-        let mut cnt = 0;
         while state >= x_max {
-            cnt += 1;
             if bytes_put >= out.len() {
                 return None;
             }
@@ -134,7 +135,6 @@ pub fn rans_encode<T: Cdf>(data: &[i8], out: &mut [u8], mdl: &T) -> Option<usize
             state >>= 8;
         }
         state = ((state / freq) << mdl.scale()) + (state % freq) + start;
-        cntn += 1;
     }
     out[bytes_put + 0] = (state >> 24) as u8;
     out[bytes_put + 1] = (state >> 16) as u8;
@@ -143,6 +143,34 @@ pub fn rans_encode<T: Cdf>(data: &[i8], out: &mut [u8], mdl: &T) -> Option<usize
     bytes_put += 4;
     out[0..bytes_put].reverse();
     Some(bytes_put)
+}
+
+// use decompress_block instead
+pub fn rans_decode<T: Cdf>(data: &[u8], out: &mut [i8], mdl: &T) -> Option<usize> {
+    let mut state = ((data[0] as u32) << 0)
+        | ((data[1] as u32) << 8)
+        | ((data[2] as u32) << 16)
+        | ((data[3] as u32) << 24);
+    let mut bytes_eaten = 4;
+
+    let mask = (1 << mdl.scale()) - 1;
+    for sym in out {
+        let cum = state & mask;
+        *sym = mdl.icdf(cum) as i8;
+        let start = mdl.cdf(*sym as i32);
+        let freq = mdl.cdf(*sym as i32 + 1) - start;
+
+        state = freq * (state >> mdl.scale()) + (state & mask) - start;
+
+        while state < RANS_BYTE_L {
+            if bytes_eaten >= data.len() {
+                return None;
+            }
+            state = (state << 8) | data[bytes_eaten] as u32;
+            bytes_eaten += 1;
+        }
+    }
+    Some(bytes_eaten)
 }
 
 const RANS_BYTE_L: u32 = 1 << 23;
