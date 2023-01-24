@@ -1,3 +1,5 @@
+This is a draft for the specification of esplog binary format.
+
 Header
 size     content          description 
 6        EspLog           magic
