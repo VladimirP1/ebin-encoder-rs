@@ -1,3 +1,5 @@
 pub mod fix32;
 pub mod quat;
-pub mod coder;
+pub mod quant;
+pub mod rans;
+pub mod compress;

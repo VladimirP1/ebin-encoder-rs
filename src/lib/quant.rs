@@ -27,7 +27,7 @@ impl State {
         }
     }
 
-    pub fn quant_block(self, quats: &[Quat], qp: u8, out: &mut [u8]) -> Option<QuantResult> {
+    pub fn quant_block(self, quats: &[Quat], qp: u8, out: &mut [i8]) -> Option<QuantResult> {
         let mut bytes_put = 0;
         let mut max_ang_err = Fix::from_i32(0);
         let mut new_state = self;
@@ -54,7 +54,7 @@ impl State {
                     return None;
                 }
                 for b in 0..3 {
-                    out[bytes_put + b] = update_quanted[b] as u8;
+                    out[bytes_put + b] = update_quanted[b];
                 }
                 bytes_put += 3;
             }
@@ -74,12 +74,12 @@ impl State {
         })
     }
 
-    pub fn dequant_block(self, data: &[u8], qp: u8, out: &mut [Quat]) -> Option<DequantResult> {
+    pub fn dequant_block(self, data: &[i8], qp: u8, out: &mut [Quat]) -> Option<DequantResult> {
         let mut quats_put = 0;
         let mut new_state = self;
 
         for n in 0..data.len() / 3 {
-            let i = 3*n;
+            let i = 3 * n;
             let upd = [data[i] as i8, data[i + 1] as i8, data[i + 2] as i8];
             new_state.v = new_state.v + dequant_update(upd, qp);
 
@@ -97,6 +97,17 @@ impl State {
             new_state,
             quats_put,
         })
+    }
+
+    pub fn dequant_one(&mut self, data: &[i8], qp: u8) -> Option<Quat> {
+        let upd = [data[0] as i8, data[1] as i8, data[2] as i8];
+        self.v = self.v + dequant_update(upd, qp);
+
+        if !is_saturated(upd, 127) {
+            self.q = (self.q * Quat::from_rvec(&self.v)).normalize_safe();
+            return Some(self.q)
+        }
+        return None
     }
 }
 
