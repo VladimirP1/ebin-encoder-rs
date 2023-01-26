@@ -6,6 +6,12 @@ pub struct CompressResult {
     pub bytes_put: usize,
 }
 
+pub struct DecompressResult {
+    pub new_state: State,
+    pub bytes_eaten: usize,
+    pub quats_put: usize,
+}
+
 const VAR_TABLE: [f64; 16] = [
     0.015625, 0.03125, 0.0625, 0.125, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0,
     256.0, 512.0,
@@ -20,33 +26,29 @@ pub fn compress_block(
     scratch: &mut [i8],
 ) -> Option<CompressResult> {
     let quant_result = state.quant_block(quats, qp, scratch)?;
+
+    // brute-force method
+    // let i_var = (0..16)
+    //     .map(|i_var| {
+    //         let mdl = LaplaceCdf::new(VAR_TABLE[i_var], SCALE);
+    //         (
+    //             i_var,
+    //             rans_encode(&scratch[..quant_result.bytes_put], &mut data[2..], &mdl)
+    //                 .unwrap_or(data.len() * 10),
+    //         )
+    //     })
+    //     .min_by_key(|x| x.1)
+    //     .unwrap()
+    //     .0;
+
+    // approximate method
     let var = (scratch[0..quant_result.bytes_put]
         .iter()
         .map(|&x| ((x as i64) * (x as i64)) as i64)
         .sum::<i64>() as f64)
         / (quant_result.bytes_put as f64);
+    let i_var = VAR_TABLE.partition_point(|&x| x < var).min(15);
 
-    // assume that there is only one minimum
-    let mut l = -1;
-    let mut r = 16;
-    while r - l > 1 {
-        let mid = (l + r) / 2;
-        let var = VAR_TABLE[mid as usize];
-        let mdl = LaplaceCdf::new(var, SCALE);
-        let bytes_used_l = rans_encode(&scratch[..quant_result.bytes_put], &mut data[2..], &mdl)
-            .unwrap_or(data.len() - 2);
-        let var = VAR_TABLE[mid as usize + 1];
-        let mdl = LaplaceCdf::new(var, SCALE);
-        let bytes_used_r = rans_encode(&scratch[..quant_result.bytes_put], &mut data[2..], &mdl)
-            .unwrap_or(data.len() - 2);
-        if bytes_used_l > bytes_used_r {
-            l = mid;
-        } else {
-            r = mid;
-        }
-    }
-
-    let i_var = l + 1;
     let var = VAR_TABLE[i_var as usize];
     let mdl = LaplaceCdf::new(var, SCALE);
     let rans_result = rans_encode(&scratch[..quant_result.bytes_put], &mut data[2..], &mdl)
@@ -59,6 +61,7 @@ pub fn compress_block(
         .unwrap_or(0);
     data[0] = qp;
     data[1] = i_var as u8 | (cksum << 5);
+    dbg!(i_var);
 
     Some(CompressResult {
         new_state: quant_result.new_state,
@@ -66,7 +69,11 @@ pub fn compress_block(
     })
 }
 
-pub fn decompress_block(state: &State, data: &[u8], quats: &mut [Quat]) -> Option<usize> {
+pub fn decompress_block(
+    state: &State,
+    data: &[u8],
+    quats: &mut [Quat],
+) -> Option<DecompressResult> {
     let qp = data[0];
     let i_var = (data[1] & 0x1f) as usize;
     let cksum = data[1] >> 5;
@@ -98,6 +105,7 @@ pub fn decompress_block(state: &State, data: &[u8], quats: &mut [Quat]) -> Optio
 
             while rstate < RANS_BYTE_L {
                 if bytes_eaten >= data.len() {
+                    dbg!(bytes_eaten);
                     return None;
                 }
                 rstate = (rstate << 8) | data[bytes_eaten] as u32;
@@ -107,16 +115,22 @@ pub fn decompress_block(state: &State, data: &[u8], quats: &mut [Quat]) -> Optio
 
         if let Some(q) = new_state.dequant_one(&s, qp) {
             if quats_put >= quats.len() {
+                dbg!(quats_put);
                 return None;
             }
             quats[quats_put] = q;
             quats_put += 1;
         }
     }
+    dbg!(own_cksum & 0x07, cksum, bytes_eaten, quats_put);
     if (own_cksum & 0x07) != cksum {
         return None;
     }
-    Some(bytes_eaten)
+    Some(DecompressResult {
+        new_state,
+        bytes_eaten,
+        quats_put,
+    })
 }
 
 pub fn rans_encode<T: Cdf>(data: &[i8], out: &mut [u8], mdl: &T) -> Option<usize> {
