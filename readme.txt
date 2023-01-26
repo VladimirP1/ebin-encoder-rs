@@ -1,5 +1,8 @@
 This is a draft for the specification of esplog binary format.
 
+File structure
+------------------------------------
+
 Header
 size     content          description 
 6        EspLog           magic
@@ -42,3 +45,16 @@ size     content          description
 04 accel setup
 05 accel uncompressed data
 06 accel time
+
+Compressed binary format for gyro
+------------------------------------
+The gyro processing pipeline should be built from 5 stages:
+1. Gyro lowpass filter
+2. Gyro integration in fixed-point quaternions
+3. Quaternion decimation or interpolation
+4. Encoding the quaternions as 8-bit quantized angular acceleration using a 
+    closed-loop encoder (basically a P controller which tries to get the 
+    decoder output as close as possible to encoder input)
+5. Compression of quantized data using ryg-rans entropy coder. For the probability 
+    distribution the most appropriate is selected from a pre-defined set of 16 
+    laplace distributions.
