@@ -51,8 +51,7 @@ pub fn compress_block(
 
     let var = VAR_TABLE[i_var as usize];
     let mdl = LaplaceCdf::new(var, SCALE);
-    let rans_result = rans_encode(&scratch[..quant_result.bytes_put], &mut data[2..], &mdl)
-        .unwrap_or(data.len() - 2);
+    let rans_result = rans_encode(&scratch[..quant_result.bytes_put], &mut data[2..], &mdl)?;
 
     let cksum = scratch[0..quant_result.bytes_put]
         .iter()
