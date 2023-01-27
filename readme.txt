@@ -16,7 +16,7 @@ size     content          description
 
 Time block
 size     content          description 
-1        0x02             block id (or 0x06 for accel)
+1        0x02             block id
 4        (uint32_le)      time since last time block in us
 
 Gyro data block
@@ -44,7 +44,6 @@ size     content          description
 03 gyro compressed data (rANS)
 04 accel setup
 05 accel uncompressed data
-06 accel time
 
 Compressed binary format for gyro
 ------------------------------------
