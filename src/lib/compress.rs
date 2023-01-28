@@ -50,7 +50,6 @@ pub fn compress_block(
         / (quant_result.bytes_put as f64);
     dbg!(var);
     let i_var = VAR_TABLE.partition_point(|&x| x < var).min(15);
-    let i_var = 2;
 
     let var = VAR_TABLE[i_var as usize];
     let mdl = LaplaceCdf::new(var, SCALE);
