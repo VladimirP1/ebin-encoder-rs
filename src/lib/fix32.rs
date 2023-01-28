@@ -9,18 +9,22 @@ pub struct Fix32<const N: usize> {
 impl<const N: usize> Fix32<N> {
     pub const MULT: i32 = 1i32 << N;
 
-    pub const E: Fix32<N> = Fix32 {
-        v: (6267931151224907085i64 >> (61 - N)) as i32,
-    };
-    pub const PI: Fix32<N> = Fix32 {
-        v: (7244019458077122842i64 >> (61 - N)) as i32,
-    };
-    pub const HALF_PI: Fix32<N> = Fix32 {
-        v: (7244019458077122842i64 >> (62 - N)) as i32,
-    };
-    pub const TWO_PI: Fix32<N> = Fix32 {
-        v: (7244019458077122842i64 >> (60 - N)) as i32,
-    };
+    pub const E: Fix32<N> = Self::from_fixed(6267931151224907085i64, 61);
+    pub const PI: Fix32<N> = Self::from_fixed(7244019458077122842i64, 61);
+    pub const HALF_PI: Fix32<N> = Self::from_fixed(7244019458077122842i64, 62);
+    pub const TWO_PI: Fix32<N> = Self::from_fixed(7244019458077122842i64, 60);
+
+    const fn from_fixed(v: i64, s: usize) -> Fix32<N> {
+        if s > N {
+            Fix32 {
+                v: (v / (1 << (s - N)) + (v / (1 << (s - N - 1)) % 2)) as i32,
+            }
+        } else {
+            Fix32 {
+                v: (v * (1 << (N - s))) as i32,
+            }
+        }
+    }
 
     pub fn from_raw(x: i32) -> Fix32<N> {
         Fix32 { v: x }
@@ -51,15 +55,10 @@ impl<const N: usize> Fix32<N> {
     pub fn atan2(&self, x: Fix32<N>) -> Fix32<N> {
         fn atan_s<const N: usize>(x: Fix32<N>) -> Fix32<N> {
             debug_assert!(x.v >= 0 && x.v <= Fix32::<N>::MULT);
-            let fa: Fix32<N> = Fix32 {
-                v: (716203666280654660i64 >> (63 - N)) as i32,
-            };
-            let fb: Fix32<N> = Fix32 {
-                v: (-2651115102768076601i64 >> (63 - N)) as i32,
-            };
-            let fc: Fix32<N> = Fix32 {
-                v: (9178930894564541004i64 >> (63 - N)) as i32,
-            };
+            let fa = Fix32::from_fixed(716203666280654660i64, 63);
+            let fb = Fix32::from_fixed(-2651115102768076601i64, 63);
+            let fc = Fix32::from_fixed(9178930894564541004i64, 63);
+
             let xx = x * x;
             return ((fa * xx + fb) * xx + fc) * x;
         }
@@ -119,6 +118,12 @@ impl<const N: usize> Fix32<N> {
             x
         };
         let x2 = x * x;
+        println!(
+            "S {} {} {}",
+            x.to_raw(),
+            x2.to_raw(),
+            (Self::TWO_PI).to_raw()
+        );
         Self::from_i32(sign)
             * x
             * (Self::PI
@@ -127,6 +132,7 @@ impl<const N: usize> Fix32<N> {
     }
 
     pub fn cos(&self) -> Fix32<N> {
+        println!("A {}", (Self::HALF_PI + *self).to_raw());
         (Self::HALF_PI + *self).sin()
     }
 

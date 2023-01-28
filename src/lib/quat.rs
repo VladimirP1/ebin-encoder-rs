@@ -5,12 +5,12 @@ use crate::fix32::Fix32;
 pub type Fix = Fix32<27>;
 pub type RVec = Vec3<27>;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Quat {
-    w: Fix,
-    x: Fix,
-    y: Fix,
-    z: Fix,
+    pub w: Fix,
+    pub x: Fix,
+    pub y: Fix,
+    pub z: Fix,
 }
 
 impl Default for Quat {
@@ -34,7 +34,9 @@ impl Quat {
         if theta2.to_raw() > 16 {
             let theta = theta2.sqrt();
             let half_theta = theta * Fix::from_float(0.5);
-            let k = half_theta.sin() / theta;
+            let s = half_theta.sin();
+            let k = s / theta;
+            println!("Q {} {} {} {}", theta.to_raw(), half_theta.to_raw(), s.to_raw(), k.to_raw());
             Quat {
                 w: half_theta.cos(),
                 x: v.x * k,

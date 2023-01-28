@@ -2,8 +2,8 @@ use crate::quat::{Fix, Quat, RVec};
 
 #[derive(Copy, Clone, Debug)]
 pub struct State {
-    q: Quat, // decoder's quat
-    v: RVec, // decoder's angular velocity
+    pub q: Quat, // decoder's quat
+    pub v: RVec, // decoder's angular velocity
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -58,10 +58,12 @@ impl State {
                 }
                 bytes_put += 3;
             }
-
+            
             // update state
             new_state.v = new_state.v + sum;
             new_state.q = (new_state.q * Quat::from_rvec(&new_state.v)).normalize_safe();
+
+            println!("{} {} {} {}", new_state.q.w.to_raw(), new_state.q.x.to_raw(), new_state.q.y.to_raw(), new_state.q.z.to_raw());
 
             // update max quantization error
             max_ang_err = (new_state.q.conj() * q).to_rvec().norm().max(max_ang_err);
