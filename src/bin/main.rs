@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{self, BufRead},
+    io::{self, BufRead, Read},
 };
 
 use ebin::{
@@ -51,8 +51,22 @@ fn parse_gcsv_q(path: String) -> Option<Vec<Quat>> {
     )
 }
 
+fn load_raw_q(path: String) -> Option<Vec<Quat>> {
+    let mut file = File::open(path).map(|x| Some(x)).unwrap_or(None)?;
+    let mut buf = vec![];
+    file.read_to_end(&mut buf).map(|x| Some(x)).unwrap_or(None)?;
+    let quats = unsafe {
+        std::slice::from_raw_parts(
+            buf.as_ptr() as *const Quat,
+            buf.len() / std::mem::size_of::<Quat>(),
+        )
+    };
+    Some(Vec::from_iter(quats.iter().map(|x| x.to_owned())))
+}
+
 fn main() {
-    let quats = parse_gcsv_q("testdata/test.gcsv".to_string()).unwrap();
+    // let quats = parse_gcsv_q("testdata/test.gcsv".to_string()).unwrap();
+    let quats = load_raw_q("testdata/test.rawquat".to_string()).unwrap();
 
     let mut state = State::new();
     let mut data = vec![0; 8192 * 8192];
@@ -87,12 +101,12 @@ fn main() {
     for i in 0..quats_put {
         let err = (quats[i].conj() * quats_out[i]).to_rvec().norm().to_float() * 180.0 / 3.14;
         rmse += err * err;
-        if err*err > 0.1 {
+        if err * err > 0.1 {
             dbg!(i);
         }
     }
     rmse = (rmse / (quats.len() as f32)).sqrt();
-    
+
     dbg!(rmse);
     println!("{} quats in", quats_put);
     println!("{} bytes out", bytes_read);

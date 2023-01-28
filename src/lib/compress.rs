@@ -4,6 +4,7 @@ use crate::{quant::State, quat::Quat};
 pub struct CompressResult {
     pub new_state: State,
     pub bytes_put: usize,
+    pub dbg_qbytes: usize,
 }
 
 pub struct DecompressResult {
@@ -47,7 +48,9 @@ pub fn compress_block(
         .map(|&x| ((x as i64) * (x as i64)) as i64)
         .sum::<i64>() as f64)
         / (quant_result.bytes_put as f64);
+    dbg!(var);
     let i_var = VAR_TABLE.partition_point(|&x| x < var).min(15);
+    let i_var = 2;
 
     let var = VAR_TABLE[i_var as usize];
     let mdl = LaplaceCdf::new(var, SCALE);
@@ -65,6 +68,7 @@ pub fn compress_block(
     Some(CompressResult {
         new_state: quant_result.new_state,
         bytes_put: rans_result + 2,
+        dbg_qbytes: quant_result.bytes_put,
     })
 }
 
@@ -121,7 +125,7 @@ pub fn decompress_block(
             quats_put += 1;
         }
     }
-    dbg!(own_cksum & 0x07, cksum, bytes_eaten, quats_put);
+    // dbg!(own_cksum & 0x07, cksum, bytes_eaten, quats_put);
     if (own_cksum & 0x07) != cksum {
         return None;
     }

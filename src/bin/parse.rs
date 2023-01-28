@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{self, BufRead},
+    io::{self, BufRead, Write},
 };
 
 use ebin::quat::{Fix, Quat, RVec};
@@ -49,5 +49,19 @@ fn parse_gcsv_q(path: String) -> Option<Vec<Quat>> {
 
 fn main() {
     let q = parse_gcsv_q("testdata/test.gcsv".to_string());
-    dbg!(q);
+
+    let data = q.unwrap();
+    let buf = unsafe {
+        std::slice::from_raw_parts(
+            data.as_ptr() as *const u8,
+            data.len() * std::mem::size_of_val(&data[0]),
+        )
+    };
+
+    dbg!(data.len());
+
+    let mut file = File::create("testdata/test.rawquat").expect("Failed to open file");
+    file.write_all(buf).expect("Failed to write");
+    
+    // dbg!(q);
 }
