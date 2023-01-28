@@ -118,12 +118,6 @@ impl<const N: usize> Fix32<N> {
             x
         };
         let x2 = x * x;
-        println!(
-            "S {} {} {}",
-            x.to_raw(),
-            x2.to_raw(),
-            (Self::TWO_PI).to_raw()
-        );
         Self::from_i32(sign)
             * x
             * (Self::PI
@@ -132,7 +126,6 @@ impl<const N: usize> Fix32<N> {
     }
 
     pub fn cos(&self) -> Fix32<N> {
-        println!("A {}", (Self::HALF_PI + *self).to_raw());
         (Self::HALF_PI + *self).sin()
     }
 

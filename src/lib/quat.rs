@@ -34,9 +34,7 @@ impl Quat {
         if theta2.to_raw() > 16 {
             let theta = theta2.sqrt();
             let half_theta = theta * Fix::from_float(0.5);
-            let s = half_theta.sin();
-            let k = s / theta;
-            println!("Q {} {} {} {}", theta.to_raw(), half_theta.to_raw(), s.to_raw(), k.to_raw());
+            let k = half_theta.sin() / theta;
             Quat {
                 w: half_theta.cos(),
                 x: v.x * k,

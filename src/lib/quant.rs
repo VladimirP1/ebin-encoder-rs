@@ -63,8 +63,6 @@ impl State {
             new_state.v = new_state.v + sum;
             new_state.q = (new_state.q * Quat::from_rvec(&new_state.v)).normalize_safe();
 
-            println!("{} {} {} {}", new_state.q.w.to_raw(), new_state.q.x.to_raw(), new_state.q.y.to_raw(), new_state.q.z.to_raw());
-
             // update max quantization error
             max_ang_err = (new_state.q.conj() * q).to_rvec().norm().max(max_ang_err);
         }
