@@ -27,12 +27,12 @@ size     content          description
 Accel setup block
 size     content          description 
 1        0x04             block id
+1        (uint8_t)        accel block size
 1        (uint8_t)        accel full range as 2^p g (ex: 4 means +-16g)
 
 Accel data block
 size     content          description 
 1        0x05             block id
-1        (uint8_t)        accel sample count in this block
 2        (int16_t_le)     accel x
 2        (int16_t_le)     accel y
 2        (int16_t_le)     accel z
