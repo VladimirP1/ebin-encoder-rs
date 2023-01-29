@@ -57,6 +57,10 @@ fn decode(buf: &[u8]) -> Option<()> {
                 pos += 5;
 
                 // generate timestamps
+                let accel_div = quats.len() /  accels.len();
+                for i in 0..quats.len() {
+
+                }
             }
             0x03 => {
                 // gyro data
@@ -78,7 +82,7 @@ fn decode(buf: &[u8]) -> Option<()> {
             }
             0x05 => {
                 // accel data
-                let mut apos = pos + 2;
+                let mut apos = pos + 1;
                 for _ in 0..accel_blk_size {
                     let ax = ((buf[apos + 0] as u16) + ((buf[apos + 1] as u16) << 8)) as i16;
                     let ay = ((buf[apos + 2] as u16) + ((buf[apos + 3] as u16) << 8)) as i16;
@@ -86,7 +90,7 @@ fn decode(buf: &[u8]) -> Option<()> {
                     accels.push([ax, ay, az]);
                     apos += 6;
                 }
-                pos += 2 + 6 * accel_blk_size;
+                pos += 1 + 6 * accel_blk_size;
                 println!("accel data. count: {}", accel_blk_size);
             }
             _ => {
