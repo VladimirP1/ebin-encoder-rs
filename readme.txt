@@ -27,23 +27,28 @@ size     content          description
 Accel setup block
 size     content          description 
 1        0x04             block id
-1        (uint8_t)        accel block size
-1        (uint8_t)        accel full range as 2^p g (ex: 4 means +-16g)
+1        (uint8)          accel block size
+1        (uint8)          accel full range as 2^p g (ex: 4 means +-16g)
 
 Accel data block
 size     content          description 
 1        0x05             block id
-2        (int16_t_le)     accel x
-2        (int16_t_le)     accel y
-2        (int16_t_le)     accel z
+2        (int16_le)       accel x
+2        (int16_le)       accel y
+2        (int16_le)       accel z
 ... (more accel data)
 
+Global time offset
+size     content          description 
+1        0x06             block id
+4        (int32_le)       time offset in us
 
 01 gyro setup
 02 gyro time
 03 gyro compressed data (rANS)
 04 accel setup
 05 accel uncompressed data
+06 global time offset
 
 Compressed binary format for gyro
 ------------------------------------
