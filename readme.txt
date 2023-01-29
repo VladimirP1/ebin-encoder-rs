@@ -43,12 +43,18 @@ size     content          description
 1        0x06             block id
 4        (int32_le)       time offset in us
 
+IMU orientation
+size     content          description 
+1        0x07             block id
+3        (imu orient)     IMU orientation like xYz
+
 01 gyro setup
 02 gyro time
 03 gyro compressed data (rANS)
 04 accel setup
 05 accel uncompressed data
 06 global time offset
+07 imu orientation
 
 Compressed binary format for gyro
 ------------------------------------
